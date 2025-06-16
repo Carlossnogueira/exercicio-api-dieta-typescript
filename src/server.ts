@@ -1,13 +1,12 @@
 import fastify from 'fastify'
 import { env } from './env'
-
-console.log(env.DATABASE_URL, env.PORT, env.NODE_ENV)
-
+import { knex } from './database'
 
 const app = fastify()
 
-app.get('/', () => {
-    return 'Hello World'
+app.get('/', async () => {
+    const test = await knex('sqlite_schema').select('*')
+    return test
 })
 
 app.listen({
