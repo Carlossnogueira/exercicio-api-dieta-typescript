@@ -5,18 +5,19 @@ import { knex } from '../database'
 import { randomUUID } from "crypto"
 
 
+
+
 export async function mealRoutes(app: FastifyInstance) {
     // Create meal route
     app.post('/', { preHandler: [checkSessionIdExists] }, async (request, reply) => {
         const { sessionId } = request.cookies;
 
-        const mealRegisterSchema = z.object({
+        const mealValidationSchema = z.object({
             name: z.string(),
             description: z.string(),
             isOnDiet: z.boolean(),
             date: z.coerce.date(),
         });
-
 
         const [userId] = await knex('users')
             .where({ session_id: sessionId })
@@ -27,7 +28,7 @@ export async function mealRoutes(app: FastifyInstance) {
             return reply.code(401).send({ error: 'Unauthorized - Invalid session' });
         }
 
-        const { name, description, isOnDiet, date } = mealRegisterSchema.parse(request.body);
+        let { name, description, isOnDiet, date } = mealValidationSchema.parse(request.body);
 
 
         const formattedDate = date.toISOString().split('T')[0];
@@ -73,5 +74,42 @@ export async function mealRoutes(app: FastifyInstance) {
             .del()
 
         return response.code(200).send({ message: 'Meal deleted successfully' })
+    })
+
+    // edit meal route
+    app.put('/:id', { preHandler: [checkSessionIdExists] }, async (request, response) => {
+        const { sessionId } = request.cookies;
+
+        
+        const mealEditSchema = z.object({
+            id: z.string(),
+        })
+
+        const { id } = mealEditSchema.parse(request.params);
+        const userId = await knex('users').where({ session_id: sessionId }).pluck('id')
+
+
+        if (!userId || !sessionId) {
+            return response.code(401).send({ error: 'Unauthorized - Invalid session' })
+        }
+
+        const mealUpdateSchema = z.object({
+            name: z.string(),
+            description: z.string(),
+            isOnDiet: z.boolean(),
+        })
+
+        const { name, description, isOnDiet } = mealUpdateSchema.parse(request.body)
+
+        await knex('meals')
+            .where({ id })
+            .update({
+                name: name,
+                description: description,
+                updated_at: knex.fn.now(),
+                is_on_diet: isOnDiet
+            })
+
+        return response.code(200).send({ message: 'Meal updated successfully' })
     })
 }
