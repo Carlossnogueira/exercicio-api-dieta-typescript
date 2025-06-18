@@ -7,8 +7,6 @@ import { randomUUID } from "crypto"
 export async function mealRoutes(app: FastifyInstance) {
     // create meal route
     app.post('/', { preHandler: [checkSessionIdExists] }, async (request, reply) => {
-        const { sessionId } = request.cookies;
-
         const mealValidationSchema = z.object({
             name: z.string(),
             description: z.string(),
@@ -16,24 +14,13 @@ export async function mealRoutes(app: FastifyInstance) {
             date: z.coerce.date(),
         });
 
-        const [userId] = await knex('users')
-            .where({ session_id: sessionId })
-            .pluck('id');
-
-
-        if (!userId || !sessionId) {
-            return reply.code(401).send({ error: 'Unauthorized - Invalid session' });
-        }
-
-        let { name, description, isOnDiet, date } = mealValidationSchema.parse(request.body);
-
-
+        const { name, description, isOnDiet, date } = mealValidationSchema.parse(request.body);
         const formattedDate = date.toISOString().split('T')[0];
 
         try {
             await knex('meals').insert({
                 id: randomUUID(),
-                user_id: userId,
+                user_id: request.user!.id,
                 name,
                 description,
                 is_on_diet: isOnDiet,
@@ -47,109 +34,84 @@ export async function mealRoutes(app: FastifyInstance) {
             console.error('Database error:', error);
             return reply.code(500).send({ error: 'Failed to register meal' });
         }
-
-    })
+    });
 
     // delete meal route
     app.delete('/:id', { preHandler: [checkSessionIdExists] }, async (request, response) => {
-        const { sessionId } = request.cookies;
-
         const mealDeleteSchema = z.object({
             id: z.string(),
-        })
+        });
 
         const { id } = mealDeleteSchema.parse(request.params);
-        const userId = await knex('users').where({ session_id: sessionId }).pluck('id')
-
-        if (!userId || !sessionId) {
-            return response.code(401).send({ error: 'Unauthorized - Invalid session' })
-        }
 
         await knex('meals')
-            .where({ id })
-            .del()
+            .where({ id, user_id: request.user!.id })
+            .del();
 
-        return response.code(200).send({ message: 'Meal deleted successfully' })
-    })
+        return response.code(200).send({ message: 'Meal deleted successfully' });
+    });
 
     // edit meal route
     app.put('/:id', { preHandler: [checkSessionIdExists] }, async (request, response) => {
-        const { sessionId } = request.cookies;
-
-        
         const mealEditSchema = z.object({
             id: z.string(),
-        })
+        });
 
         const { id } = mealEditSchema.parse(request.params);
-        const userId = await knex('users').where({ session_id: sessionId }).pluck('id')
-
-
-        if (!userId || !sessionId) {
-            return response.code(401).send({ error: 'Unauthorized - Invalid session' })
-        }
 
         const mealUpdateSchema = z.object({
             name: z.string(),
             description: z.string(),
             date: z.coerce.date(),
             isOnDiet: z.boolean()
-        })
+        });
 
-        const { name, description, isOnDiet, date } = mealUpdateSchema.parse(request.body)
-
+        const { name, description, isOnDiet, date } = mealUpdateSchema.parse(request.body);
         const formattedDate = date.toISOString().split('T')[0];
 
         await knex('meals')
-            .where({ id })
+            .where({ id, user_id: request.user!.id })
             .update({
-                name: name,
-                description: description,
+                name,
+                description,
                 date: formattedDate,
                 updated_at: knex.fn.now(),
                 is_on_diet: isOnDiet
-            })
+            });
 
-        return response.code(200).send({ message: 'Meal updated successfully' })
-    })
+        return response.code(200).send({ message: 'Meal updated successfully' });
+    });
 
     // list one meal route
-    app.get('/:id', {preHandler: [checkSessionIdExists]}, async (request, response) =>{
-        const { sessionId } = request.cookies;
-
+    app.get('/:id', { preHandler: [checkSessionIdExists] }, async (request, response) => {
         const mealEditSchema = z.object({
             id: z.string(),
-        })
+        });
 
-        const {id} = mealEditSchema.parse(request.params);
-        const userId = await (await knex('users').where({ session_id: sessionId }).pluck('id')).toString()
+        const { id } = mealEditSchema.parse(request.params);
 
-        if (!userId || !sessionId) {
-            return response.code(401).send({ error: 'Unauthorized - Invalid session' })
-        }
-
-        const meal = await knex('meals').where({id: id,user_id: userId}).first() 
+        const meal = await knex('meals')
+            .where({ id, user_id: request.user!.id })
+            .first();
 
         if (!meal) {
             return response.code(404).send({ error: 'Meal not found' });
         }
 
         return response.code(200).send(meal);
-    })
+    });
 
     // list all meals
-    app.get('/', {preHandler: [checkSessionIdExists]}, async (request, response) =>{
-        const { sessionId } = request.cookies;
+    app.get('/', { preHandler: [checkSessionIdExists] }, async (request, response) => {
+        const meals = await knex('meals')
+            .where({ user_id: request.user!.id })
+            .select('name', 'description', 'is_on_diet', 'date');
 
-        const userId = await (await knex('users').where({ session_id: sessionId }).pluck('id')).toString()
+        return response.code(200).send({ meals });
+    });
 
-        if (!userId || !sessionId) {
-            return response.code(401).send({ error: 'Unauthorized - Invalid session' })
-        }
-
-        const meals = await knex('meals').where({ user_id: userId }).select('name', 'description', 'is_on_diet','date')
-
-        return response.code(200).send({meals})
-    })
-
+    //TODO : add delete meal route
+    app.get('/metrics', { preHandler: [checkSessionIdExists] }, async (request, response) => {
+        
+    });
 }

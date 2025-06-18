@@ -1,5 +1,16 @@
 import 'knex'
 
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    user?: {
+      id: string;
+      session_id: string;
+    };
+  }
+}
+
+
 declare module 'knex/types/tables' {
     export interface Tables {
         users:{
