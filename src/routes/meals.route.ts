@@ -136,4 +136,20 @@ export async function mealRoutes(app: FastifyInstance) {
 
         return response.code(200).send(meal);
     })
+
+    // list all meals
+    app.get('/', {preHandler: [checkSessionIdExists]}, async (request, response) =>{
+        const { sessionId } = request.cookies;
+
+        const userId = await (await knex('users').where({ session_id: sessionId }).pluck('id')).toString()
+
+        if (!userId || !sessionId) {
+            return response.code(401).send({ error: 'Unauthorized - Invalid session' })
+        }
+
+        const meals = await knex('meals').where({ user_id: userId }).select('name', 'description', 'is_on_diet','date')
+
+        return response.code(200).send({meals})
+    })
+
 }

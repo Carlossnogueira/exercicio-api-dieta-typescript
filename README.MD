@@ -8,13 +8,13 @@ Nesse desafio desenvolveremos uma API para controle de dieta diária, a Daily Di
     
     *As refeições devem ser relacionadas a um usuário.*
     
-    - Nome - FEITO! ✅
-    - Descrição - FEITO! ✅
-    - Data e Hora - FEITO! ✅
+    - Nome -  ✅
+    - Descrição -  ✅
+    - Data e Hora -  ✅
     - Está dentro ou não da dieta  ✅
 - Deve ser possível editar uma refeição, podendo alterar todos os dados acima  - FEITO! ✅
 - Deve ser possível apagar uma refeição - FEITO! ✅
-- Deve ser possível listar todas as refeições de um usuário
+- Deve ser possível listar todas as refeições de um usuário - FEITO! ✅
 - Deve ser possível visualizar uma única refeição - FEITO! ✅
 - Deve ser possível recuperar as métricas de um usuário
     - Quantidade total de refeições registradas
