@@ -110,8 +110,44 @@ export async function mealRoutes(app: FastifyInstance) {
         return response.code(200).send({ meals });
     });
 
-    //TODO : add delete meal route
+    // meal metrics route
     app.get('/metrics', { preHandler: [checkSessionIdExists] }, async (request, response) => {
-        
+        const userId = request.user!.id;
+
+        const totalMealsOnDiet = await knex('meals')
+            .where({ user_id: request.user?.id, is_on_diet: true })
+            .count('id', { as: 'total' })
+            .first();
+
+        const totalMealsOffDiet = await knex('meals')
+            .where({ user_id: request.user?.id, is_on_diet: false })
+            .count('id', { as: 'total' })
+            .first();
+
+        const totalMeals = await knex('meals')
+            .where({ user_id: request.user?.id })
+            .orderBy('date', 'asc'); 
+
+        const { bestOnDietSequence } = totalMeals.reduce(
+            (acc, meal) => {
+                if (meal.is_on_diet) {
+                    acc.currentSequence += 1;
+                    acc.bestOnDietSequence = Math.max(acc.bestOnDietSequence, acc.currentSequence);
+                } else {
+                    acc.currentSequence = 0;
+                }
+                return acc;
+            },
+            { bestOnDietSequence: 0, currentSequence: 0 }
+        );
+
+        return response.send({
+            totalMeals: totalMeals.length,
+            totalMealsOnDiet: Number(totalMealsOnDiet?.total ?? 0),
+            totalMealsOffDiet: Number(totalMealsOffDiet?.total ?? 0),
+            bestOnDietSequence,
+        });
+
+
     });
 }
